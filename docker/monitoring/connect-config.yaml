@@ -1,0 +1,156 @@
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+rules:
+
+  # Metrics related to Kafka Connect workers - does not contain metrics about connectors or tasks
+  - pattern: "kafka.connect<type=connect-worker-metrics>([^:]+):"
+    name: "kafka_connect_connect_worker_metrics_$1"
+
+  # Metrics related to Kafka Connect worker rebalances
+  - pattern: "kafka.connect<type=connect-worker-rebalance-metrics>([^:]+):"
+    name: "kafka_connect_connect_worker_rebalance_metrics_$1"
+
+  # Metrics about connectors running in the worker - does not contain metrics about the connector tasks
+  - pattern: "kafka.connect<type=connector-metrics, connector=([^:]+)>([^:]+)"
+    name: "kafka_connect_connector_metrics_$1_$2"
+    labels:
+      connector: "$1"
+
+  # Metrics about connector tasks running in the worker
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+)"
+    name: "kafka_connect_connector_task_metrics_$1_$2_$3"
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics about source tasks running in the worker
+  - pattern: "kafka.connect<type=source-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+)"
+    name: "kafka_connect_source_task_metrics_$1_$2_$3"
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics about sink tasks running in the worker
+  - pattern: "kafka.connect<type=sink-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+)"
+    name: "kafka_connect_sink_task_metrics_$1_$2_$3"
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics about errors in tasks in the worker
+  - pattern: "kafka.connect<type=task-error-metrics, connector=([^:]+), task=([^:]+)><>([^:]+)"
+    name: "kafka_connect_task_error_metrics_$1_$2_$3"
+    labels:
+      connector: "$1"
+      task: "$2"
+
+
+  # SPECIAL SYNTAX TO MATCH CONNECT TASK STATUSES
+  # This metric has a "string" value (e.g., 'unassigned', 'running'), which Prometheus cannot ingest because
+  # in only supports numbers. Instead, we translate every string value to a corresponding numeric value
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+): unassigned"
+    name: "kafka_connect_connect_task_metrics_$3"
+    value: 0
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics for the status of the connector tasks
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+): running"
+    name: "kafka_connect_connect_task_metrics_$3"
+    value: 1
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics for the status of the connector tasks
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+): paused"
+    name: "kafka_connect_connect_task_metrics_$3"
+    value: 2
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics for the status of the connector tasks
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+): failed"
+    name: "kafka_connect_connect_task_metrics_$3"
+    value: 3
+    labels:
+      connector: "$1"
+      task: "$2"
+
+  # Metrics for the status of the connector tasks
+  - pattern: "kafka.connect<type=connector-task-metrics, connector=([^:]+), task=([^:]+)><>([^:]+): destroyed"
+    name: "kafka_connect_connect_task_metrics_$3"
+    value: 4
+    labels:
+      connector: "$1"
+      task: "$2"
+  # END OF SPECIAL SYNTAX TO MATCH CONNECT TASK STATUSES
+
+
+ # Metrics about Debezium plugin
+  - pattern: "debezium.([^:]+)<type=connector-metrics, context=([^,]+), server=([^>]+)>([^:]+)"
+    name: "debezium_metrics_$1_$2_$3_$4"
+    labels:
+      plugin: "$1"
+      name: "$3"
+      context: "$2"
+
+
+  # Metrics related to producers that the connectors use, at the global level
+  - pattern: "kafka.producer<type=producer-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_connect_producer_$2"
+    labels:
+      client: $1
+
+  # Metrics related to producers that the connectors use, at the broker level
+  - pattern: "kafka.producer<type=producer-node-metrics, client-id=([^:]+), node-id=([^:]+)><>([^:]+)"
+    name: "kafka_connect_producer_node_$3"
+    labels:
+      client: $1
+      node: $2
+
+  # Metrics related to producers that the connectors use, at the topic level
+  - pattern: "kafka.producer<type=producer-topic-metrics, client-id=([^:]+), topic=([^:]+)><>([^:]+)"
+    name: "kafka_connect_producer_topic_$3"
+    labels:
+      client: $1
+      topic: $2
+
+
+  # Metrics related to consumers that the connectors use, at the global level
+  - pattern: "kafka.consumer<type=consumer-fetch-manager-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_connect_consumer_fetch_manager_$2"
+    labels:
+      client: $1
+
+  # Metrics related to consumers that the connectors use, at the topic level
+  - pattern: "kafka.consumer<type=consumer-fetch-manager-metrics, client-id=([^:]+), topic=([^:]+)><>([^:]+)"
+    name: "kafka_connect_consumer_fetch_manager_$3"
+    labels:
+      client: $1
+      topic: $2
+
+  # Metrics related to consumers that the connectors use, at the partition level
+  - pattern: "kafka.consumer<type=consumer-fetch-manager-metrics, client-id=([^:]+), topic=([^:]+), partition=([^:]+)><>([^:]+)"
+    name: "kafka_connect_consumer_fetch_manager_$4"
+    labels:
+      client: $1
+      topic: $2
+      partition: $3
+
+  # Metrics related to consumer groups that the connectors use, at the topic level
+  - pattern: "kafka.consumer<type=consumer-coordinator-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_connect_consumer_coordinator_$2"
+    labels:
+      client: $1
+
+
+  # Metrics related to consumer groups that the connectors use, at the topic level
+  - pattern: "kafka.consumer<type=consumer-coordinator-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_connect_consumer_coordinator_$2"
+    labels:
+      client: $1

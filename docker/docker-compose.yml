@@ -1,0 +1,108 @@
+---
+version: '3.7'
+services:
+  kafka-all-included:
+    hostname: kafka-all-included
+    privileged: true # allows playing with IP tables to force error scenarios
+    #image: landoop/fast-data-dev:2.6.2
+    image: javierholguera/fast-data-dev
+    ports:
+      - "2181:2181" # zookeeper
+      - "9092:9092" # kafka
+      - "8081:8081" # schema-registry
+      - "8083:8083" # kafka-connect
+      - "3030:3030" # lenses admin web
+      - "9080:9080" # Broker prometheus exporter
+      - "10080:10080" # Connect prometheus exporter
+
+    environment:
+      ADV_HOST: ${DOCKER_HOST_IP?DOCKER_HOST_IP must be configured with the machine IP (see 'ipconfig getifaddr en0' in MacOS X)}
+
+      # Things to disable
+      REST_PORT: 0 # disables REST proxy
+      ZK_JMX_PORT: 0 # disables JMX metrics for ZK
+      REGISTRY_JMX_PORT: 0 # disables JMX metrics for Schema Registry
+      SUPERVISORWEB: 0 # disables supervisor web, supervisor will still run (it's PID 1)
+      RUNTESTS: 0 # disables tests
+
+      # We need to listen to two interfaces:
+      # - Internal (Docker network): this can be reached by all processes inside the container (e.g., ZK, KF, SR, Connect)
+      # - External (Host IP): this can be used by any app running outside docker (e.g., your application, your tests)
+
+      # 'listeners' property supports binding to 0.0.0.0. 'advertised.listeners' doesn't because it goes to clients through ZK
+      KAFKA_LISTENERS: LISTENER_DOCKER_INTERNAL://0.0.0.0:19092,LISTENER_DOCKER_EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka-all-included:19092,LISTENER_DOCKER_EXTERNAL://${DOCKER_HOST_IP}:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+
+      # use internal listener, external is not addressable from inside docker network
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-all-included:19092 
+      CONNECT_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-all-included:19092
+      CONNECT_REST_ADVERTISED_HOST_NAME: ${DOCKER_HOST_IP}
+
+      USER: admin
+      PASSWORD: admin
+      DEBUG: 1
+      CONNECTORS: debezium-mysql,s3,jdbc # only enable plugins that we use to reduce startup time and memory footprint
+      CONNECT_PLUGIN_PATH: /var/run/connect/connectors/stream-reactor,/var/run/connect/connectors/third-party,/connectors,/connector-plugins
+
+      ## Extra properties to externalise secrets
+      ## (see https://docs.confluent.io/current/connect/security.html#externalizing-secrets):
+      CONNECT_CONFIG_PROVIDERS: file # multiple comma-separated provider types can be specified here
+      CONNECT_CONFIG_PROVIDERS_FILE_CLASS: org.apache.kafka.common.config.provider.FileConfigProvider
+
+      # Allow connector consumer/producer overrides
+      CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: 'All'
+
+      ## Credentials needed to configure the S3 connector
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+
+      ## Monitoring options
+      BROKER_OPTS: "-javaagent:/monitoring/jmx_prometheus_javaagent.jar=9080:/monitoring/broker-config.yaml"
+      CONNECT_OPTS: "-javaagent:/monitoring/jmx_prometheus_javaagent.jar=10080:/monitoring/connect-config.yaml"
+
+    volumes:
+      - ./tmp-data:/data
+      - ./secrets:/etc/kafka/secrets
+      - ./monitoring:/monitoring
+      - ./connector-plugins:/connector-plugins
+
+  prometheus:
+    container_name: prometheus
+    hostname: prometheus
+    image: prom/prometheus:v2.4.3
+    ports:
+     - 9090:9090
+    volumes:
+      - ./prometheus:/etc/prometheus
+    links:
+     - kafka-all-included
+
+  grafana:
+    build:
+      context: grafana
+      dockerfile: Dockerfile
+    ports:
+     - 3000:3000
+    links:
+     - prometheus
+    environment:
+     - DS_PROMETHEUS=prometheus
+
+  local-mysql:
+    hostname: local-mysql
+    image: mysql:5.6
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mypassword
+    volumes:
+      - ./local-mysql/conf-mysql:/etc/mysql/conf.d/
+      - ./local-mysql/init-mysql:/docker-entrypoint-initdb.d
+
+networks:
+  default:
+    name: kafka-infrastructure
