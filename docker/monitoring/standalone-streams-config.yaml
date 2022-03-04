@@ -1,0 +1,58 @@
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+rules:
+
+  # Metrics related to stream threads - INFO level
+  - pattern: "kafka.streams<type=stream-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_thread_metrics_$2"
+    labels:
+      client: $1
+
+  # Metrics related to stream tasks - DEBUG level
+  - pattern: "kafka.streams<type=stream-task-metrics, client-id=([^:]+), task-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_task_metrics_$3"
+    labels:
+      client: $1
+      task: $2
+
+  # Metrics related to stream processor - DEBUG level
+  - pattern: "kafka.streams<type=stream-processor-node-metrics, client-id=([^:]+), task-id=([^:]+), processor-node-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_processor_node_metrics_$4"
+    labels:
+      client: $1
+      task: $2
+      processor-node: $3
+
+  # Metrics related to stream rocksdb-state store - DEBUG level
+  - pattern: "kafka.streams<type=stream-rocksdb-state-metrics, client-id=([^:]+), task-id=([^:]+), rocksdb-state-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_rocksdb_state_metrics_$4"
+    labels:
+      client: $1
+      task: $2
+      rocksdb-state: $3
+
+  # Metrics related to stream in-memory-state store - DEBUG level
+  - pattern: "kafka.streams<type=stream-in-memory-state-metrics, client-id=([^:]+), task-id=([^:]+), in-memory-state-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_in_memory_state_metrics_$4"
+    labels:
+      client: $1
+      task: $2
+      in-memory-state: $3
+
+  # Metrics related to stream record-cache - DEBUG level
+  - pattern: "kafka.streams<type=stream-record-cache-metrics, client-id=([^:]+), task-id=([^:]+), record-cache-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_rocksdb_state_metrics_$4"
+    labels:
+      client: $1
+      task: $2
+      record-cache: $3
+
+  # Metrics related to stream buffer - DEBUG level
+  - pattern: "kafka.streams<type=stream-buffer-metrics, client-id=([^:]+), task-id=([^:]+), buffer-id=([^:]+)><>([^:]+)"
+    name: "kafka_stream_buffer_metrics_$4"
+    labels:
+      client: $1
+      task: $2
+      buffer: $3

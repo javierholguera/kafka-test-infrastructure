@@ -1,0 +1,26 @@
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+rules:
+  # Metrics related to Consumers
+  - pattern: "kafka.consumer<type=consumer-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_consumer_metrics_$2"
+    labels:
+      client: "$1"
+  # Metrics related to consumer and topics
+  - pattern: "kafka.consumer<type=consumer-topic-metrics, client-id=([^:]+), topic=([^:]+)><>([^:]+)"
+    name: "kafka_consumer_topic_metrics_$3"
+    labels:
+      client: "$1"
+      topic: "$2"
+  # Metrics related to consumer coordinator
+  - pattern: "kafka.consumer<type=consumer-coordinator-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_consumer_coordinator_metrics_$2"
+    labels:
+      client: "$1"
+  # Metrics related to consumer fetcher manager
+  - pattern: "kafka.consumer<type=consumer-fetch-manager-metrics, client-id=([^:]+)><>([^:]+)"
+    name: "kafka_consumer_fetch_manager_metrics_$2"
+    labels:
+      client: "$1"
