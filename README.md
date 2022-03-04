@@ -1,4 +1,4 @@
-# kafka_test_infrastructure
+Kafka Test Infrastructure
 Dockerised infrastructure to run various Kafka tests and workloads
 
 # Usage
